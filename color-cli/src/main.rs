@@ -101,12 +101,20 @@ impl HexColor {
         let h = match delta {
             0.0 => 0.0,
             _ => {
-                let mut h = match c_max {
+                let v = vec![red, green, blue]
+                    .iter()
+                    .cloned()
+                    .fold(0.0, |acc, x| match acc > x {
+                        true => acc,
+                        false => x,
+                    });
+                let mut h = match v {
                     red => (green - blue) / delta,
                     green => (blue - red) / delta + 2.0,
                     blue => (red - green) / delta + 4.0,
                     _ => 0.0,
                 };
+                println!("{:?}", h);
                 h = h * 60.0;
                 if h < 0.0 {
                     h += 360.0;
