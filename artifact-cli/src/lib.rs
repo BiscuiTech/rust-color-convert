@@ -1,15 +1,26 @@
-use std::env;
+// use std::env;
 use std::error::Error;
 use std::fs;
+use std::io::Write;
+use std::thread;
+use std::time::Duration;
 
-// use json_minimal::*;
-use serde::Deserialize;
-use serde_json::json;
+use console::Term;
+
+use console;
+use dialoguer;
+use indicatif;
+const PACKAGE_NAME_QUERY: &str = "@sveltejs";
 
 pub struct Config {
     pub query: String,
     pub filename: String,
-    pub case_sensitive: bool,
+    // pub case_sensitive: bool,
+}
+
+pub struct Package {
+    name: String,
+    version: String,
 }
 
 const QUERY: &str = "devDependencies";
@@ -27,12 +38,12 @@ impl Config {
         let query = QUERY.to_string();
         let filename = FILENAME.to_string();
 
-        let case_sensitive = env::var("CASE_INSENSITIVE").is_err();
+        // let case_sensitive = env::var("CASE_INSENSITIVE").is_err();
 
         Ok(Config {
             query,
             filename,
-            case_sensitive,
+            // case_sensitive,
         })
     }
 }
@@ -41,29 +52,37 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.filename)?;
 
     let results = search(&config.query, &contents);
-    // let results = if config.case_sensitive {
-    //     search(&config.query, &contents)
-    // } else {
-    //     search_case_insensitive(&config.query, &contents)
-    // };
 
+    // for line in results {
+    //     println!("{}:{}", line.name, line.version);
+    // }
+
+    let term = Term::stdout();
+    term.write_line("Select version to upgrade");
     for line in results {
-        println!("{}", line);
+        term.write_line(&format!("{}:{}", line.name, line.version));
     }
+    term.
+    // thread::sleep(Duration::from_millis(2000));
+    // term.clear_line();
+    // term.write_vectored(results);
 
     Ok(())
 }
 
-pub fn search<'a>(query: &str, contents: &'a str) -> Vec<String> {
-    let mut results = Vec::new();
+pub fn search<'a>(query: &str, contents: &'a str) -> Vec<Package> {
+    let mut results: Vec<Package> = Vec::new();
 
     let json: serde_json::Value =
     serde_json::from_str(contents).expect("JSON was not well-formatted");
     let packages = json.get("devDependencies").unwrap().as_object().unwrap();
     packages.into_iter().for_each(|(key, value)| {
-        match key.starts_with("sveltejs") {
+        match key.starts_with(PACKAGE_NAME_QUERY) {
             true => {
-                results.push(key.clone());
+                results.push(Package {
+                    name: key.to_string(),
+                    version: value.to_string(),
+                });
             },
             false => {
                 // println!("{}", key);
@@ -71,78 +90,23 @@ pub fn search<'a>(query: &str, contents: &'a str) -> Vec<String> {
         }
 
     });
-
-    // for line in contents.lines() {
-    //     if line.contains(query) {
-    //         results.push(line);
-    //     }
-    // }
-
+    // println!("{:?}", packages);
     results
 }
 
-// fn extractJson(json: &Json) -> Vec<Json> {
-//     match json {
-//         Json::STRING(value) => {
-//             panic!("The value is unsupported; Type is STRING. {:?}", value);
-//         },
-//         Json::OBJECT { name, value } => {
-//             // panic!("The value is unsupported; Type is OBJECT. {:?}: {:?}", name, value);
-//             extractJson(value);
-//         },
-//         Json::ARRAY(value) => {
-//             panic!("The value is unsupported; Type is ARRAY. {:?}", value);
-//         },
-//         Json::JSON(value) => {
-//             panic!("The value is unsupported; Type is JSON. {:?}", value);
-//         },
-//         _ => {
-//             panic!("The value is unsupported; Type is unsupported.");
-//         }
-//     };
-// }
-
-// pub fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a String> {
-//     let query = query.to_lowercase();
-//     let mut results = Vec::new();
-
-//     for line in contents.lines() {
-//         if line.to_lowercase().contains(&query) {
-//             results.push(line);
-//         }
-//     }
-
-//     results
-// }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn case_sensitive() {
-        let query = "duct";
-        let contents = "\
-Rust:
-safe, fast, productive.
-Pick three.
-Duct tape.";
-
-        assert_eq!(vec!["safe, fast, productive."], search(query, contents));
-    }
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
 //     #[test]
-//     fn case_insensitive() {
-//         let query = "rUsT";
+//     fn case_sensitive() {
+//         let query = "duct";
 //         let contents = "\
 // Rust:
 // safe, fast, productive.
 // Pick three.
-// Trust me.";
+// Duct tape.";
 
-//         assert_eq!(
-//             vec!["Rust:", "Trust me."],
-//             search_case_insensitive(query, contents)
-//         );
+//         assert_eq!(vec!["safe, fast, productive."], search(query, contents));
 //     }
-}
+// }
